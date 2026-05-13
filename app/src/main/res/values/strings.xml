@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">ELM327 Monitor</string>
+    <string name="btn_connect">Conectar ao ELM327</string>
+    <string name="btn_disconnect">Desconectar</string>
+    <string name="status_disconnected">Desconectado</string>
+    <string name="status_connecting">Conectando…</string>
+    <string name="status_connected">Conectado</string>
+    <string name="dialog_title_select_device">Selecionar dispositivo ELM327</string>
+    <string name="dialog_cancel">Cancelar</string>
+    <string name="err_bluetooth_not_supported">Bluetooth não suportado neste dispositivo</string>
+    <string name="err_no_paired_devices">Nenhum dispositivo Bluetooth pareado encontrado.\nPareie o ELM327 nas configurações do sistema.</string>
+    <string name="err_bt_must_be_enabled">O Bluetooth precisa estar ativado</string>
+    <string name="err_permission_denied">Permissões Bluetooth negadas</string>
+</resources>
