@@ -32,6 +32,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var messageAdapter: MessageAdapter
     private lateinit var bluetoothAdapter: BluetoothAdapter
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Activity Result Launchers
+    // ─────────────────────────────────────────────────────────────────────────
+
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -52,13 +56,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Lifecycle
+    // ─────────────────────────────────────────────────────────────────────────
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         val btManager = getSystemService(BluetoothManager::class.java)
-        val adapter = btManager?.adapter
+        val adapter   = btManager?.adapter
         if (adapter == null) {
             Toast.makeText(this, getString(R.string.err_bluetooth_not_supported), Toast.LENGTH_LONG).show()
             binding.btnConnect.isEnabled = false
@@ -71,10 +79,14 @@ class MainActivity : AppCompatActivity() {
         setupClickListeners()
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Setup
+    // ─────────────────────────────────────────────────────────────────────────
+
     private fun setupRecyclerView() {
         messageAdapter = MessageAdapter()
         binding.rvMessages.apply {
-            adapter = messageAdapter
+            adapter       = messageAdapter
             layoutManager = LinearLayoutManager(this@MainActivity).also {
                 it.stackFromEnd = true
             }
@@ -101,14 +113,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupClickListeners() {
+        binding.btnConnect.setOnClickListener {
+            when (viewModel.connectionState.value) {
+                is ConnectionState.Connected -> viewModel.disconnect()
+                is ConnectionState.Connecting -> { /* aguardar */ }
+                else -> checkPermissionsAndConnect()
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // UI de conexão
+    // ─────────────────────────────────────────────────────────────────────────
+
     private fun updateConnectionUI(state: ConnectionState) {
         when (state) {
             is ConnectionState.Disconnected -> {
                 binding.tvStatus.text = getString(R.string.status_disconnected)
                 binding.tvStatus.setTextColor(getColor(android.R.color.darker_gray))
                 binding.tvDeviceInfo.visibility = View.GONE
-                binding.btnConnect.isEnabled = true
-                binding.btnConnect.text = getString(R.string.btn_connect)
+                binding.btnConnect.isEnabled    = true
+                binding.btnConnect.text         = getString(R.string.btn_connect)
             }
             is ConnectionState.Connecting -> {
                 binding.tvStatus.text = getString(R.string.status_connecting)
@@ -118,30 +144,24 @@ class MainActivity : AppCompatActivity() {
             is ConnectionState.Connected -> {
                 binding.tvStatus.text = getString(R.string.status_connected)
                 binding.tvStatus.setTextColor(getColor(android.R.color.holo_green_dark))
-                binding.tvDeviceInfo.text = "${state.deviceName}  |  ${state.macAddress}"
+                binding.tvDeviceInfo.text       = "${state.deviceName}  |  ${state.macAddress}"
                 binding.tvDeviceInfo.visibility = View.VISIBLE
-                binding.btnConnect.isEnabled = true
-                binding.btnConnect.text = getString(R.string.btn_disconnect)
+                binding.btnConnect.isEnabled    = true
+                binding.btnConnect.text         = getString(R.string.btn_disconnect)
             }
             is ConnectionState.Error -> {
                 binding.tvStatus.text = "Erro: ${state.message}"
                 binding.tvStatus.setTextColor(getColor(android.R.color.holo_red_dark))
                 binding.tvDeviceInfo.visibility = View.GONE
-                binding.btnConnect.isEnabled = true
-                binding.btnConnect.text = getString(R.string.btn_connect)
+                binding.btnConnect.isEnabled    = true
+                binding.btnConnect.text         = getString(R.string.btn_connect)
             }
         }
     }
 
-    private fun setupClickListeners() {
-        binding.btnConnect.setOnClickListener {
-            if (viewModel.connectionState.value is ConnectionState.Connected) {
-                viewModel.disconnect()
-            } else {
-                checkPermissionsAndConnect()
-            }
-        }
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // Permissões e Bluetooth
+    // ─────────────────────────────────────────────────────────────────────────
 
     private fun checkPermissionsAndConnect() {
         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -170,14 +190,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkBluetoothAndConnect() {
         if (!bluetoothAdapter.isEnabled) {
-            val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            enableBluetoothLauncher.launch(intent)
+            @Suppress("MissingPermission")
+            enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
         } else {
             showDevicePicker()
         }
     }
 
     private fun showDevicePicker() {
+        @Suppress("MissingPermission")
         val pairedDevices: Set<BluetoothDevice> = bluetoothAdapter.bondedDevices ?: emptySet()
 
         if (pairedDevices.isEmpty()) {
@@ -185,7 +206,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val deviceList = pairedDevices.toList()
+        val deviceList  = pairedDevices.toList()
+        @Suppress("MissingPermission")
         val deviceNames = deviceList.map { device ->
             "${device.name ?: "Desconhecido"}\n${device.address}"
         }.toTypedArray()
@@ -193,7 +215,9 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.dialog_title_select_device))
             .setItems(deviceNames) { _, index ->
-                viewModel.connect(deviceList[index])
+                // Passa também o bluetoothAdapter para que o manager possa
+                // chamar cancelDiscovery() antes de conectar
+                viewModel.connect(deviceList[index], bluetoothAdapter)
             }
             .setNegativeButton(getString(R.string.dialog_cancel), null)
             .show()
